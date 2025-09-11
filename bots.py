@@ -103,16 +103,18 @@ BOT_TOKEN = '8353328233:AAEN3S644SlHTuLydFk4HChro6_qL0thto0'
 bot = Bot(BOT_TOKEN)
 dp = Dispatcher()
 
-user = {
-    'in_game': False,
-    'attempt': 0,
-    'number': random.randint(1, 10),
-    'total_games': 0,
-    'wins': 0,
-}
+# users = {'user': {
+#     'in_game': False,
+#     'attempt': 0,
+#     'number': ,
+#     'total_games': 0,
+#     'wins': 0,
+# }}
 
-def check_casino_succes():
-    if user['total_games'] == 0:
+users = {}
+
+def check_casino_succes(user):
+    if users[user]['total_games'] == 0:
         return None
     if user['wins']/user['total_games'] > 0.5:
         return 'С вами удача, быстрее в казино играть!'
@@ -120,10 +122,20 @@ def check_casino_succes():
         return 'Вам в казино противопоказано ха!'
 
 @staticmethod
+@dp.message(Command(commands='start'))
 async def process_start_command(message: Message):
     await message.answer(
         "Привет!\nМеня зовут Рандом-бот!\nДавай сыграем в игру 'Угадай число'. Ты можешь узнать все команды, набрав /help"
                          )
+    if message.from_user.id not in users:
+        number = random.randint(1, 10)
+        users[message.from_user.id] = {
+            'in_game': False,
+            'number': number,
+            'attempt': 0,
+            'total_games': 0,
+            'wins': 0
+        }
 
 @staticmethod
 @dp.message(Command(commands='help'))
@@ -133,7 +145,7 @@ async def process_help_command(message: Message):
 @staticmethod
 @dp.message(Command(commands='stat'))
 async def process_help_command(message: Message):
-    await message.answer(f'Твое кол-во попыток испытать удач: {user["total_games"]}\nКол-во удачных игр: {user['wins']}\n'
+    await message.answer(f'Твое кол-во попыток испытать удач: {users[message.from_user.id]["total_games"]}\nКол-во удачных игр: {users[message.from_user.id]['wins']}\n'
                          f'{check_casino_succes()}'
     )
 
@@ -147,18 +159,18 @@ async def process_help_command(message: Message):
 @dp.message(F.text.lower().in_(['да', 'давай', 'сыграем', 'игра',
                             'играть', 'хочу играть']))
 async def procces_user_agree(message: Message):
-    if user['in_game']:
+    if users[message.from_user.id]['in_game']:
         await message.answer('Давай числа говори уже, а не дакай тут')
     else:
-        user['in_game'] = True
-        user['attempt'] += 1
-        user['total_games'] += 1
+        users[message.from_user.id]['in_game'] = True
+        users[message.from_user.id]['attempt'] += 1
+        users[message.from_user.id]['total_games'] += 1
         await message.answer('Крутяк, я загадал число. Давай гадай теперь')
 
 @staticmethod
 @dp.message(F.text.lower().in_(['нет', 'не', 'не хочу', 'не буду']))
 async def procces_user_not_agree(message: Message):
-    if not user['in_game']:
+    if not users[message.from_user.id]['in_game']:
         await message.answer('Такой ответ не принимаю, пиши ответ ДА')
     else:
         await message.answer('Поздновато, мы уже играем. Но если тебе так лень, то можешь написать /cancel')
@@ -167,40 +179,40 @@ async def procces_user_not_agree(message: Message):
 @dp.message(lambda x: x.text and x.text.isdigit() and 0 <= int(x.text) <= 100)
 async def procces_user_not_agree(message: Message):
     number = int(message.text)
-    user_succes_number = user['number']
+    user_succes_number = users[message.from_user.id]['number']
 
-    if user['attempt'] > 2 and user_succes_number != number:
+    if users[message.from_user.id]['attempt'] > 2 and user_succes_number != number:
         await message.answer(f'Сорян, ваше число попыток исчерпано. Секретное число: {user['number']}\n Предлагаю заново испытать удачу. Будем играть?')
-        new_succes_number = random.randint(1, 10)
-        user['in_game'] = False
-        user['attempt'] = 0
-        user['number'] = new_succes_number
+        new_succes_number = random.randint(1, 100)
+        users[message.from_user.id]['in_game'] = False
+        users[message.from_user.id]['attempt'] = 0
+        users[message.from_user.id]['number'] = new_succes_number
 
     else:
         if number == user_succes_number:
-            new_succes_number = random.randint(1, 10)
-            user['in_game'] = False
-            user['attempt'] = 0
-            user['number'] = new_succes_number
-            user['wins'] += 1
+            new_succes_number = random.randint(1, 100)
+            users[message.from_user.id]['in_game'] = False
+            users[message.from_user.id]['attempt'] = 0
+            users[message.from_user.id]['number'] = new_succes_number
+            users[message.from_user.id]['wins'] += 1
             await message.answer(
                 'Иди в казино играй, а не со мной. \nЧисло угадано, круто.. \n'
                 'А давай еще раз сыграем, а?'
                 )
         elif number < user_succes_number:
-            user['attempt'] += 1
+            users[message.from_user.id]['attempt'] += 1
             await message.answer(
                 f'Хаха, не угадали, давай-ка снова пиши число. Оно больше, чем {number} \n'
                 )
         else:
-            user['attempt'] += 1
+            users[message.from_user.id]['attempt'] += 1
             await message.answer(
                 f'Хаха, не угадали, давай-ка снова пиши число. Оно меньше, чем {number} \n'
                 )
 
 @dp.message()
 async def process_other_answers(message: Message):
-    if user['in_game']:
+    if users[message.from_user.id]['in_game']:
         await message.answer(
             'Мы же сейчас с вами играем. '
             'Присылайте, пожалуйста, числа от 1 до 100'
